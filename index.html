@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jacobi Solver — Metode Numerik</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  font-family:'Plus Jakarta Sans',sans-serif;
+  background:#f5f3ff;
+  min-height:100vh;
+  color:#1e1b4b;
+}
+
+/* HERO HEADER */
+.hero{
+  background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 40%,#a78bfa 70%,#c4b5fd 100%);
+  padding:56px 24px 80px;
+  text-align:center;
+  position:relative;
+  overflow:hidden;
+}
+.hero::before{
+  content:'∑ ∫ ∂ λ π Δ ε α β γ';
+  position:absolute;top:0;left:0;right:0;bottom:0;
+  font-size:80px;letter-spacing:40px;
+  color:rgba(255,255,255,0.06);
+  display:flex;align-items:center;justify-content:center;
+  pointer-events:none;font-family:'Fira Code',monospace;
+  white-space:nowrap;overflow:hidden;
+}
+.hero-badge{
+  display:inline-flex;align-items:center;gap:6px;
+  background:rgba(255,255,255,0.18);
+  border:1px solid rgba(255,255,255,0.35);
+  border-radius:100px;padding:6px 16px;
+  font-size:12px;font-weight:600;color:#fff;
+  letter-spacing:0.08em;text-transform:uppercase;
+  margin-bottom:20px;backdrop-filter:blur(8px);
+}
+.hero h1{
+  font-size:clamp(26px,5vw,44px);font-weight:800;
+  color:#fff;letter-spacing:-0.03em;line-height:1.1;
+  margin-bottom:10px;
+}
+.hero-sub{font-size:15px;color:rgba(255,255,255,0.8);max-width:460px;margin:0 auto;}
+
+/* WAVE DIVIDER */
+.wave{display:block;width:100%;height:50px;background:#f5f3ff;margin-top:-2px;}
+
+/* MAIN CONTENT */
+.container{max-width:960px;margin:0 auto;padding:0 24px 80px;}
+
+/* CARDS */
+.card{
+  background:#fff;border-radius:20px;padding:28px;margin-bottom:20px;
+  border:1px solid rgba(99,102,241,0.1);
+  box-shadow:0 4px 24px rgba(99,102,241,0.08);
+}
+.card-header{
+  display:flex;align-items:center;gap:10px;
+  margin-bottom:22px;
+  padding-bottom:16px;
+  border-bottom:2px solid #f0eeff;
+}
+.card-icon{
+  width:36px;height:36px;border-radius:10px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:16px;flex-shrink:0;
+}
+.icon-purple{background:#ede9fe;color:#6366f1;}
+.icon-blue{background:#dbeafe;color:#3b82f6;}
+.icon-green{background:#dcfce7;color:#22c55e;}
+.icon-orange{background:#fff7ed;color:#f97316;}
+.card-title{font-size:14px;font-weight:700;color:#3730a3;letter-spacing:0.02em;}
+.card-sub{font-size:12px;color:#a5b4fc;margin-top:1px;}
+
+/* N STEPPER */
+.n-row{display:flex;align-items:center;gap:14px;margin-bottom:20px;}
+.n-label{font-size:14px;color:#6b7280;font-weight:500;}
+.n-stepper{
+  display:flex;align-items:center;
+  background:#f5f3ff;border:2px solid #c7d2fe;border-radius:12px;overflow:hidden;
+}
+.n-btn{
+  width:38px;height:38px;background:none;border:none;
+  color:#6366f1;font-size:20px;font-weight:700;cursor:pointer;
+  transition:background 0.15s;display:flex;align-items:center;justify-content:center;
+}
+.n-btn:hover{background:#ede9fe;}
+.n-val{
+  font-family:'Fira Code',monospace;font-size:16px;font-weight:600;color:#4338ca;
+  padding:0 16px;border-left:2px solid #c7d2fe;border-right:2px solid #c7d2fe;
+  line-height:38px;min-width:48px;text-align:center;
+}
+
+/* EQ INPUTS */
+.eq-row{
+  display:flex;align-items:center;gap:6px;
+  margin-bottom:10px;flex-wrap:wrap;
+  padding:10px 12px;border-radius:12px;
+  background:#fafafa;border:1.5px solid #f0eeff;
+  transition:border-color 0.2s;
+}
+.eq-row:hover{border-color:#c7d2fe;}
+.eq-num{
+  font-family:'Fira Code',monospace;font-size:12px;
+  color:#a5b4fc;font-weight:500;min-width:20px;text-align:right;
+}
+.num-input{
+  width:58px;padding:7px 8px;
+  background:#fff;border:1.5px solid #e0e7ff;border-radius:8px;
+  color:#1e1b4b;font-family:'Fira Code',monospace;font-size:13px;
+  text-align:center;outline:none;transition:all 0.2s;
+  -moz-appearance:textfield;
+}
+.num-input::-webkit-outer-spin-button,
+.num-input::-webkit-inner-spin-button{-webkit-appearance:none;}
+.num-input:focus{border-color:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,0.15);}
+.num-input.diag{
+  border-color:#a78bfa;background:#f5f3ff;color:#4338ca;font-weight:500;
+}
+.num-input.diag:focus{border-color:#7c3aed;box-shadow:0 0 0 3px rgba(124,58,237,0.15);}
+.var-name{font-size:13px;color:#6366f1;font-family:'Fira Code',monospace;font-weight:500;}
+.op-sep{font-size:13px;color:#d1d5db;}
+.eq-sep{font-size:16px;color:#6366f1;font-weight:700;padding:0 4px;}
+
+/* PARAMS */
+.params-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:16px;margin-bottom:22px;}
+.param-group{display:flex;flex-direction:column;gap:6px;}
+.param-label{font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#6366f1;}
+.param-input{
+  padding:10px 12px;background:#f5f3ff;
+  border:1.5px solid #c7d2fe;border-radius:10px;
+  color:#1e1b4b;font-family:'Fira Code',monospace;font-size:13px;
+  outline:none;transition:all 0.2s;width:100%;-moz-appearance:textfield;
+}
+.param-input::-webkit-outer-spin-button,
+.param-input::-webkit-inner-spin-button{-webkit-appearance:none;}
+.param-input:focus{border-color:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,0.15);}
+
+/* BUTTONS */
+.btn-row{display:flex;gap:12px;flex-wrap:wrap;align-items:center;}
+.btn-solve{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:12px 28px;background:linear-gradient(135deg,#6366f1,#8b5cf6);
+  color:#fff;border:none;border-radius:12px;
+  font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;font-weight:700;
+  cursor:pointer;transition:all 0.2s;letter-spacing:0.01em;
+  box-shadow:0 4px 16px rgba(99,102,241,0.4);
+}
+.btn-solve:hover{transform:translateY(-1px);box-shadow:0 6px 22px rgba(99,102,241,0.5);}
+.btn-solve:active{transform:translateY(0);box-shadow:0 2px 8px rgba(99,102,241,0.3);}
+.btn-example{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:12px 20px;background:#fff;
+  color:#6366f1;border:2px solid #c7d2fe;border-radius:12px;
+  font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:600;
+  cursor:pointer;transition:all 0.2s;
+}
+.btn-example:hover{background:#f5f3ff;border-color:#6366f1;}
+.btn-reset{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:12px 18px;background:#fff;
+  color:#9ca3af;border:1.5px solid #e5e7eb;border-radius:12px;
+  font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:600;
+  cursor:pointer;transition:all 0.2s;
+}
+.btn-reset:hover{color:#6b7280;border-color:#d1d5db;background:#f9fafb;}
+
+/* SPINNER */
+.spinner{width:16px;height:16px;border:2.5px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;display:none;}
+.btn-solve.loading .spinner{display:block;}
+.btn-solve.loading .btn-txt{display:none;}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ALERTS */
+.alert{
+  display:flex;align-items:flex-start;gap:10px;
+  padding:14px 16px;border-radius:12px;font-size:13px;font-weight:500;
+  margin-bottom:20px;animation:slideIn 0.3s ease;
+}
+@keyframes slideIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
+.alert-ok{background:#f0fdf4;border:1.5px solid #bbf7d0;color:#166534;}
+.alert-warn{background:#fffbeb;border:1.5px solid #fde68a;color:#92400e;}
+.alert-err{background:#fef2f2;border:1.5px solid #fecaca;color:#991b1b;}
+.alert-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:3px;}
+.alert-ok .alert-dot{background:#22c55e;}
+.alert-warn .alert-dot{background:#f59e0b;}
+.alert-err .alert-dot{background:#ef4444;}
+
+/* RESULTS */
+#results-section{animation:fadeUp 0.4s ease;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+
+/* SOLUTION CARDS */
+.sol-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:12px;margin-bottom:20px;}
+.sol-card{
+  background:linear-gradient(135deg,#6366f1,#8b5cf6);
+  border-radius:14px;padding:16px;text-align:center;
+  position:relative;overflow:hidden;
+}
+.sol-card::before{
+  content:'';position:absolute;top:-20px;right:-20px;
+  width:60px;height:60px;background:rgba(255,255,255,0.1);border-radius:50%;
+}
+.sol-var-name{font-size:12px;font-weight:700;color:rgba(255,255,255,0.7);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:6px;}
+.sol-value{font-family:'Fira Code',monospace;font-size:18px;font-weight:600;color:#fff;word-break:break-all;}
+
+/* STAT CARDS */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;}
+.stat-card{background:#f5f3ff;border-radius:14px;padding:16px;border:1.5px solid #e0e7ff;}
+.stat-label{font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#a5b4fc;margin-bottom:6px;}
+.stat-value{font-size:20px;font-weight:700;color:#3730a3;font-family:'Fira Code',monospace;}
+.stat-value.ok{color:#16a34a;}
+.stat-value.warn{color:#d97706;}
+
+/* FORMULA */
+.formula-block{
+  background:#f8faff;border:1.5px solid #c7d2fe;border-radius:12px;
+  padding:16px 20px;font-family:'Fira Code',monospace;font-size:13px;
+  color:#4338ca;line-height:2.2;border-left:4px solid #6366f1;border-top-left-radius:0;border-bottom-left-radius:0;
+}
+.formula-hl{color:#7c3aed;font-weight:600;}
+
+/* CHART */
+.chart-wrap{position:relative;width:100%;height:300px;}
+
+/* TABLE */
+.tbl-scroll{overflow-x:auto;border-radius:12px;border:1.5px solid #e0e7ff;}
+table{width:100%;border-collapse:collapse;font-size:13px;min-width:420px;}
+thead{background:linear-gradient(135deg,#6366f1,#8b5cf6);}
+th{padding:11px 14px;text-align:left;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:rgba(255,255,255,0.9);white-space:nowrap;}
+td{padding:9px 14px;font-family:'Fira Code',monospace;font-size:12px;color:#4b5563;border-bottom:1px solid #f0eeff;white-space:nowrap;}
+td:first-child{color:#a5b4fc;font-weight:500;}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:#faf5ff;}
+tr.conv td{color:#16a34a;}
+tr.conv td:first-child{color:#86efac;}
+.tag-ok{
+  display:inline-block;font-family:'Plus Jakarta Sans',monospace;font-size:10px;font-weight:700;
+  background:#dcfce7;border:1px solid #bbf7d0;color:#166534;
+  border-radius:100px;padding:2px 8px;letter-spacing:0.04em;margin-left:6px;
+}
+
+/* CHIPS */
+.chip{
+  display:inline-flex;align-items:center;gap:4px;
+  font-size:11px;font-weight:700;padding:3px 10px;border-radius:100px;
+  letter-spacing:0.05em;
+}
+.chip-purple{background:#ede9fe;color:#6d28d9;}
+
+/* DIVIDER SECTION */
+.section-divider{
+  display:flex;align-items:center;gap:12px;
+  margin:28px 0 20px;
+}
+.section-divider span{
+  font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;
+  color:#a5b4fc;white-space:nowrap;
+}
+.section-divider::before,.section-divider::after{
+  content:'';flex:1;height:1.5px;background:#e0e7ff;
+}
+
+/* FOOTER */
+footer{
+  text-align:center;margin-top:40px;padding-top:24px;
+  border-top:1.5px solid #e0e7ff;font-size:12px;color:#a5b4fc;font-weight:500;
+  line-height: 1.8;
+}
+
+.hidden{display:none!important;}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:6px;height:6px;}
+::-webkit-scrollbar-track{background:#f5f3ff;}
+::-webkit-scrollbar-thumb{background:#c7d2fe;border-radius:3px;}
+::-webkit-scrollbar-thumb:hover{background:#a5b4fc;}
+
+@media(max-width:520px){
+  .hero{padding:40px 16px 60px;}
+  .container{padding:0 16px 60px;}
+  .card{padding:20px 16px;}
+  .num-input{width:48px;font-size:12px;}
+  .var-name{font-size:11px;}
+  .eq-row{padding:8px;}
+}
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="hero-badge">⚙️ &nbsp;Metode Numerik</div>
+  <h1>Jacobi Iterative Solver</h1>
+  <p class="hero-sub">Selesaikan sistem persamaan linear Ax = b dengan metode iterasi Jacobi + grafik konvergensi interaktif</p>
+</div>
+<svg class="wave" viewBox="0 0 1440 50" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg"><path d="M0,50 C360,0 1080,50 1440,10 L1440,50 Z" fill="#f5f3ff"/></svg>
+
+<div class="container">
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon icon-purple">📐</div>
+      <div>
+        <div class="card-title">Dimensi sistem</div>
+        <div class="card-sub">Atur jumlah variabel / persamaan</div>
+      </div>
+    </div>
+    <div class="n-row">
+      <span class="n-label">Jumlah variabel</span>
+      <div class="n-stepper">
+        <button class="n-btn" onclick="changeN(-1)">−</button>
+        <span class="n-val" id="n-display">3</span>
+        <button class="n-btn" onclick="changeN(1)">+</button>
+      </div>
+      <span class="chip chip-purple">maks 6</span>
+    </div>
+
+    <div class="card-header" style="margin-bottom:14px;">
+      <div class="card-icon icon-blue">🔢</div>
+      <div>
+        <div class="card-title">Koefisien Ax = b</div>
+        <div class="card-sub">Diagonal ungu = elemen pembagi Jacobi</div>
+      </div>
+    </div>
+    <div id="eq-inputs"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon icon-orange">⚙️</div>
+      <div>
+        <div class="card-title">Parameter iterasi</div>
+        <div class="card-sub">Tebakan awal, toleransi, dan batas iterasi</div>
+      </div>
+    </div>
+    <div class="params-grid">
+      <div class="param-group">
+        <label class="param-label" for="x0">Tebakan awal x₀</label>
+        <input class="param-input" type="number" id="x0" value="0" step="0.1">
+      </div>
+      <div class="param-group">
+        <label class="param-label" for="eps">Toleransi ε</label>
+        <input class="param-input" type="number" id="eps" value="0.0001" step="0.00001">
+      </div>
+      <div class="param-group">
+        <label class="param-label" for="maxiter">Maks iterasi</label>
+        <input class="param-input" type="number" id="maxiter" value="100" step="1" min="1" max="500">
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn-solve" onclick="solve()" id="solve-btn">
+        <div class="spinner"></div>
+        <span class="btn-txt">▶ &nbsp;Hitung Sekarang</span>
+      </button>
+      <button class="btn-example" onclick="loadExample()">📋 &nbsp;Load Contoh</button>
+      <button class="btn-example" onclick="downloadCSV()">📥 &nbsp;Download CSV</button>
+      <button class="btn-reset" onclick="resetAll()">↺ &nbsp;Reset</button>
+    </div>
+  </div>
+
+  <div id="alert-box" class="hidden"></div>
+
+  <div id="results-section" class="hidden">
+
+    <div class="section-divider"><span>Solusi</span></div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-icon icon-green">✅</div>
+        <div>
+          <div class="card-title">Nilai solusi x</div>
+          <div class="card-sub">Hasil akhir setelah iterasi konvergen</div>
+        </div>
+      </div>
+      <div id="sol-grid" class="sol-grid"></div>
+
+      <div class="card-header" style="margin-top:20px;margin-bottom:14px;">
+        <div class="card-icon icon-purple">📊</div>
+        <div><div class="card-title">Statistik konvergensi</div></div>
+      </div>
+      <div id="stat-grid" class="stat-grid"></div>
+    </div>
+
+    <div class="section-divider"><span>Formula &amp; Grafik</span></div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-icon icon-blue">𝑓</div>
+        <div>
+          <div class="card-title">Formula iterasi Jacobi</div>
+          <div class="card-sub">Persamaan update per variabel</div>
+        </div>
+      </div>
+      <div class="formula-block" id="formula-block"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-icon icon-purple">📈</div>
+        <div>
+          <div class="card-title">Grafik konvergensi error</div>
+          <div class="card-sub">Penurunan error tiap iterasi (skala logaritmik)</div>
+        </div>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="conv-chart" role="img" aria-label="Grafik penurunan error per iterasi metode Jacobi">Grafik error iterasi Jacobi.</canvas>
+      </div>
+    </div>
+
+    <div class="section-divider"><span>Tabel iterasi</span></div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-icon icon-orange">📋</div>
+        <div>
+          <div class="card-title">Tabel iterasi lengkap</div>
+          <div class="card-sub">Nilai x tiap iterasi beserta error</div>
+        </div>
+      </div>
+      <div class="tbl-scroll">
+        <table id="iter-table"></table>
+      </div>
+      <p id="tbl-note" style="font-size:11px;color:#a5b4fc;margin-top:10px;"></p>
+    </div>
+
+  </div>
+
+  <footer>
+    Jacobi Iterative Solver &nbsp;·&nbsp; UTS Pemrograman Web / Metode Numerik &nbsp;·&nbsp; <br>
+    <span style="font-weight:700; color:#6366f1;">© 2026 | Built by Muhammad Anggoro Binadro</span>
+  </footer>
+</div>
+
+<script>
+let N=3,chartInst=null;
+const VARS=['x₁','x₂','x₃','x₄','x₅','x₆'];
+
+// Diubah menjadi array kosong secara default
+let defA=[['','',''],['','',''],['','','']], defB=['','',''];
+
+function renderInputs(){
+  let h='';
+  for(let i=0;i<N;i++){
+    h+=`<div class="eq-row"><span class="eq-num">${i+1}.</span>`;
+    for(let j=0;j<N;j++){
+      if(j>0)h+=`<span class="op-sep">+</span>`;
+      const d=i===j;
+      h+=`<span style="display:flex;align-items:center;gap:4px">
+        <input class="num-input${d?' diag':''}" id="a${i}_${j}" type="number" value="${defA[i]?.[j] ?? ''}" step="any">
+        <span class="var-name">${VARS[j]}</span>
+      </span>`;
+    }
+    h+=`<span class="eq-sep">=</span><input class="num-input" style="width:70px" id="b${i}" type="number" value="${defB[i] ?? ''}" step="any">`;
+    h+='</div>';
+  }
+  document.getElementById('eq-inputs').innerHTML=h;
+}
+
+function changeN(d){
+  const{A,b}=getMatrix();defA=A;defB=b;
+  N=Math.max(2,Math.min(6,N+d));
+  document.getElementById('n-display').textContent=N;
+  while(defA.length<N){defA.push(Array(N).fill(''));defB.push('');}
+  for(let i=0;i<N;i++)while(defA[i].length<N)defA[i].push('');
+  renderInputs();hideResults();
+}
+
+// Fungsi getMatrix di-update agar mengenali string kosong (tidak otomatis jadi 0)
+function getMatrix(){
+  const A=[],b=[];
+  for(let i=0;i<N;i++){
+    A.push([]);
+    for(let j=0;j<N;j++){
+      let val = document.getElementById(`a${i}_${j}`).value;
+      A[i].push(val === '' ? '' : parseFloat(val));
+    }
+    let bVal = document.getElementById(`b${i}`).value;
+    b.push(bVal === '' ? '' : parseFloat(bVal));
+  }
+  return{A,b};
+}
+
+function loadExample(){
+  N=3;document.getElementById('n-display').textContent=3;
+  defA=[[6,-3,-2],[2,5,-4],[1,-3,5]];defB=[38,28,4];
+  renderInputs();
+  document.getElementById('x0').value=0;
+  document.getElementById('eps').value=0.0001;
+  document.getElementById('maxiter').value=100;
+  hideResults();setAlert('');
+}
+
+// Fungsi resetAll di-update untuk mengembalikan input jadi kosong
+function resetAll(){
+  N=3;document.getElementById('n-display').textContent=3;
+  defA=[['','',''],['','',''],['','','']];defB=['','',''];
+  renderInputs();
+  document.getElementById('x0').value=0;
+  document.getElementById('eps').value=0.0001;
+  document.getElementById('maxiter').value=100;
+  hideResults();setAlert('');
+}
+
+function isDiagDom(A){
+  for(let i=0;i<A.length;i++){
+    let s=0;for(let j=0;j<A.length;j++)if(i!==j)s+=Math.abs(A[i][j]);
+    if(Math.abs(A[i][i])<=s)return false;
+  }
+  return true;
+}
+
+function solve(){
+  const btn=document.getElementById('solve-btn');
+  btn.classList.add('loading');
+  setTimeout(()=>{try{_solve();}catch(e){setAlert('err','Error: '+e.message);}btn.classList.remove('loading');},60);
+}
+
+function _solve(){
+  hideResults();setAlert('');
+  const startTime = performance.now(); 
+  
+  const{A,b}=getMatrix();
+  
+  // Validasi: Cek apakah ada input kotak yang dibiarkan kosong
+  for(let i=0;i<N;i++){
+    if(b[i] === '') { setAlert('err', 'Mohon isi semua nilai konstanta (b) di sebelah kanan sama dengan!'); return; }
+    for(let j=0;j<N;j++){
+      if(A[i][j] === '') { setAlert('err', 'Mohon isi semua nilai koefisien di matriks persamaan!'); return; }
+    }
+  }
+
+  const eps=parseFloat(document.getElementById('eps').value)||1e-4;
+  const maxIt=Math.min(parseInt(document.getElementById('maxiter').value)||100,500);
+  const x0v=parseFloat(document.getElementById('x0').value)||0;
+  for(let i=0;i<N;i++){
+    if(A[i][i]===0){setAlert('err',`Elemen diagonal a${i+1}${i+1} = 0. Silakan susun ulang letak persamaannya!`);return;}
+  }
+  const warns=[];
+  if(!isDiagDom(A))warns.push('Matriks tidak diagonal dominan, konvergensi tidak dijamin.');
+  let x=Array(N).fill(x0v);
+  const hist=[{k:0,x:[...x],err:null}];
+  for(let k=1;k<=maxIt;k++){
+    const xn=Array(N).fill(0);
+    for(let i=0;i<N;i++){
+      let s=b[i];for(let j=0;j<N;j++)if(i!==j)s-=A[i][j]*x[j];
+      xn[i]=s/A[i][i];
+    }
+    const err=Math.max(...xn.map((v,i)=>Math.abs(v-x[i])));
+    hist.push({k,x:[...xn],err});x=xn;
+    if(err<eps)break;
+  }
+  
+  const last=hist[hist.length-1];
+  const conv=last.err!==null&&last.err<eps;
+  const totalIt=hist.length-1;
+  
+  const endTime = performance.now();
+  const execTime = (endTime - startTime).toFixed(2); 
+
+  if(warns.length)setAlert('warn',warns.join(' '));
+  if(conv)setAlert('ok',`✓ Konvergen setelah ${totalIt} iterasi — error akhir: ${last.err.toExponential(4)}`);
+  else setAlert('warn',`Belum konvergen setelah ${totalIt} iterasi. Coba tambah batas iterasi.`);
+  
+  renderResults(x,hist,A,b,eps,conv,execTime); 
+}
+
+function renderResults(x,hist,A,b,eps,conv,execTime){
+  let sg='';
+  for(let i=0;i<N;i++)sg+=`<div class="sol-card"><div class="sol-var-name">${VARS[i]}</div><div class="sol-value">${x[i].toFixed(6)}</div></div>`;
+  document.getElementById('sol-grid').innerHTML=sg;
+
+  const last=hist[hist.length-1];const totalIt=hist.length-1;
+  const sc=conv?'ok':'warn';const st=conv?'Konvergen ✓':'Tidak konvergen';
+  document.getElementById('stat-grid').innerHTML=`
+    <div class="stat-card"><div class="stat-label">Total iterasi</div><div class="stat-value">${totalIt}</div></div>
+    <div class="stat-card"><div class="stat-label">Error akhir</div><div class="stat-value" style="font-size:15px">${last.err!==null?last.err.toExponential(4):'—'}</div></div>
+    <div class="stat-card"><div class="stat-label">Toleransi ε</div><div class="stat-value" style="font-size:15px">${eps}</div></div>
+    <div class="stat-card"><div class="stat-label">Waktu Eksekusi</div><div class="stat-value" style="font-size:15px">${execTime} ms</div></div>
+    <div class="stat-card"><div class="stat-label">Status</div><div class="stat-value ${sc}" style="font-size:15px">${st}</div></div>
+  `;
+
+  let fh='';
+  for(let i=0;i<N;i++){
+    let terms=`<span class="formula-hl">${b[i]}</span>`;
+    for(let j=0;j<N;j++){
+      if(i===j)continue;
+      const c=A[i][j];const sign=c>=0?' − ':' + ';const ac=Math.abs(c);
+      terms+=`${sign}${ac}·${VARS[j]}`;
+    }
+    fh+=`${VARS[i]}<sup>(k+1)</sup> = ( ${terms} ) / <span class="formula-hl">${A[i][i]}</span><br>`;
+  }
+  document.getElementById('formula-block').innerHTML=fh;
+
+  buildChart(hist,eps,conv);
+  buildTable(hist,eps);
+
+  document.getElementById('results-section').classList.remove('hidden');
+  document.getElementById('results-section').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function buildChart(hist,eps,conv){
+  if(chartInst){chartInst.destroy();chartInst=null;}
+  const errData=hist.filter(h=>h.err!==null).map(h=>({x:h.k,y:h.err}));
+  chartInst=new Chart(document.getElementById('conv-chart'),{
+    type:'line',
+    data:{datasets:[
+      {label:'Error',data:errData,borderColor:'#6366f1',backgroundColor:'rgba(99,102,241,0.08)',borderWidth:2.5,pointRadius:errData.length>40?0:4,pointBackgroundColor:'#8b5cf6',pointBorderColor:'#fff',pointBorderWidth:2,fill:true,tension:0.35},
+      {label:'Toleransi ε',data:errData.map(d=>({x:d.x,y:eps})),borderColor:'rgba(34,197,94,0.6)',borderWidth:1.5,borderDash:[6,4],pointRadius:0,fill:false}
+    ]},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      animation:{duration:700,easing:'easeOutQuart'},
+      plugins:{
+        legend:{display:true,position:'top',align:'end',labels:{color:'#6b7280',font:{family:"'Plus Jakarta Sans',sans-serif",size:12},boxWidth:12,boxHeight:2}},
+        tooltip:{backgroundColor:'#fff',borderColor:'#e0e7ff',borderWidth:1.5,titleColor:'#1e1b4b',bodyColor:'#6b7280',padding:12,cornerRadius:10,
+          callbacks:{title:ctx=>`Iterasi ke-${ctx[0].parsed.x}`,label:ctx=>ctx.dataset.label==='Error'?`Error: ${ctx.parsed.y.toExponential(5)}`:`ε = ${ctx.parsed.y}`}}
+      },
+      scales:{
+        x:{type:'linear',title:{display:true,text:'Iterasi (k)',color:'#9ca3af',font:{size:12}},grid:{color:'rgba(99,102,241,0.06)'},ticks:{color:'#9ca3af',font:{family:"'Fira Code',monospace"}}},
+        y:{type:'logarithmic',title:{display:true,text:'Error (log scale)',color:'#9ca3af',font:{size:12}},grid:{color:'rgba(99,102,241,0.06)'},ticks:{color:'#9ca3af',font:{family:"'Fira Code',monospace",size:11},callback:v=>{const e=Math.log10(v);return Number.isInteger(e)?`10${sup(e)}`:null;}}}
+      }
+    }
+  });
+}
+
+function sup(n){const m={'-':'⁻','0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹'};return String(n).split('').map(c=>m[c]||c).join('');}
+
+function buildTable(hist,eps){
+  const MAX=60;
+  let th='<thead><tr><th>k</th>';
+  for(let i=0;i<N;i++)th+=`<th>${VARS[i]}</th>`;
+  th+='<th>Error</th></tr></thead>';
+  const rows=hist.slice(0,MAX).map(h=>{
+    const isC=h.err!==null&&h.err<eps;
+    const ec=h.err!==null?h.err.toExponential(5)+(isC?'<span class="tag-ok">✓ konvergen</span>':''):'—';
+    return`<tr class="${isC?'conv':''}"><td>${h.k}</td>${h.x.map(v=>`<td>${v.toFixed(6)}</td>`).join('')}<td>${ec}</td></tr>`;
+  }).join('');
+  document.getElementById('iter-table').innerHTML=th+'<tbody>'+rows+'</tbody>';
+  document.getElementById('tbl-note').textContent=hist.length>MAX?`Menampilkan ${MAX} dari ${hist.length} baris total.`:'';
+}
+
+function setAlert(type,msg){
+  const el=document.getElementById('alert-box');
+  if(!type||!msg){el.classList.add('hidden');el.innerHTML='';return;}
+  el.className=`alert alert-${type}`;
+  el.innerHTML=`<span class="alert-dot"></span><span>${msg}</span>`;
+  el.classList.remove('hidden');
+}
+
+function hideResults(){document.getElementById('results-section').classList.add('hidden');}
+
+function downloadCSV() {
+  let table = document.getElementById("iter-table");
+  if (!table || table.rows.length === 0) {
+    setAlert('warn', 'Tidak ada data untuk di-download. Hitung dulu ya!');
+    return;
+  }
+  let csvContent = "";
+  let rows = table.querySelectorAll("tr");
+  
+  rows.forEach(row => {
+    let rowData = [];
+    let cols = row.querySelectorAll("th, td");
+    cols.forEach(col => {
+        rowData.push(col.innerText.replace('✓ konvergen', '').trim());
+    });
+    csvContent += rowData.join(",") + "\n";
+  });
+
+  let blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  let url = window.URL.createObjectURL(blob);
+  let a = document.createElement("a");
+  a.setAttribute("href", url);
+  a.setAttribute("download", "Hasil_Iterasi_Jacobi.csv");
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
+renderInputs();
+</script>
+</body>
+</html>
